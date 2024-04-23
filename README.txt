@@ -1,0 +1,16 @@
+一、环境配置
+
+1.安装torch,torchaudio
+pip3 install torch torchaudio
+
+2.安装funasr
+cd FunASR-bm && pip3 install -e ./
+
+3.安装tpu_perf
+pip3 install tpu_perf-1.2.35-py3-none-manylinux2014_x86_64.whl
+
+二、运行离线语音识别demo
+
+python3 infer.py
+
+infer.py有两个可配置的参数, input_path(语音文件的路径), dev_id(bm1684x的device id)

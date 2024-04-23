@@ -171,6 +171,7 @@ class AutoModel:
         if not torch.cuda.is_available() or kwargs.get("ngpu", 1) == 0:
             device = "cpu"
             kwargs["batch_size"] = 1
+        device = "cpu"
         kwargs["device"] = device
 
         torch.set_num_threads(kwargs.get("ncpu", 4))

@@ -395,8 +395,7 @@ class ContextualParaformer(Paraformer):
         token_num = token_num.round().long()
         if torch.max(token_num) < 1:
             return []
-        import copy
-        encoder_out = copy.deepcopy(enc)
+        encoder_out = enc
         hw_list=self.hotword_list
         if hw_list is None:
             hw_list = [torch.Tensor([1]).long().to(encoder_out.device)]  # empty hotword list
