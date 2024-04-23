@@ -69,7 +69,7 @@ class ContextualParaformer(Paraformer):
             self.bias_embed = torch.nn.Embedding(self.vocab_size, inner_dim)
         else:
             logging.error("Unsupport bias encoder type: {}".format(bias_encoder_type))
-        emb_weight = torch.load("/workspace/tpu-mlir/case/asr/contextual_paraformer/embedding_weight.pt")
+        emb_weight = torch.load("../config/asr/embedding_weight.pt")
         self.bias_embed.weight = emb_weight
 
         if self.target_buffer_length > 0:
@@ -82,8 +82,8 @@ class ContextualParaformer(Paraformer):
             self.attn_loss = torch.nn.L1Loss()
         self.crit_attn_smooth = crit_attn_smooth
 
-        self.encoder_model = EngineOV("/workspace/tpu-mlir/case/asr/gen_encoder/encoder_bm1684x_f32.bmodel", device_id=0)
-        self.decoder_model = EngineOV("/workspace/tpu-mlir/case/asr/gen_decoder/decoder_bm1684x_f32.bmodel", device_id=0)
+        self.encoder_model = EngineOV("../config/asr/encoder_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
+        self.decoder_model = EngineOV("../config/asr/decoder_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
 
     def forward(
         self,

@@ -6,7 +6,7 @@ import time
 import os
 class EngineOV:
 
-    def __init__(self, model_path="", batch=1,device_id=0) :
+    def __init__(self, model_path="", batch=1, device_id=0) :
         # 如果环境变量中没有设置device_id，则使用默认值
         if "DEVICE_ID" in os.environ:
             device_id = int(os.environ["DEVICE_ID"])

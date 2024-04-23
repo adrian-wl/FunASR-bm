@@ -287,9 +287,7 @@ class FsmnVADStreaming(nn.Module):
 		self.encoder = encoder
 		self.encoder_conf = encoder_conf
 
-		import pdb; pdb.set_trace()
-		self.fsmn_model = EngineOV("./gen_fsmn/fsmn_bm1684x_f32.bmodel", device_id=0)
-		#self.fsmn_model = EngineOV("/workspace/tpu-mlir/case/asr/gen_fsmn/fsmn_bm1684x_f32.bmodel", device_id=0)
+		self.fsmn_model = EngineOV("../config/fsmn/fsmn_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
 
 
 	def ResetDetection(self, cache: dict = {}):
