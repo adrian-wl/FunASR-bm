@@ -1,0 +1,7 @@
+PyYAML>=5.1.2
+kaldi-native-fbank
+librosa
+numpy>=1.19.3
+onnx
+onnxruntime>=1.7.0
+scipy
