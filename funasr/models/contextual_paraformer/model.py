@@ -423,9 +423,9 @@ class ContextualParaformer(Paraformer):
         pre_token_length = token_num
         encoder_out_lens = torch.from_numpy(speech_lengths)
         decoder_end = time.time()
-        print("encoder:", encoder_end-encoder_start)
-        print("predictor:", predictor_end-encoder_end)
-        print("decoder:", decoder_end-predictor_end)
+        # print("encoder:", encoder_end-encoder_start)
+        # print("predictor:", predictor_end-encoder_end)
+        # print("decoder:", decoder_end-predictor_end)
 
         results = []
         b, n, d = decoder_out.size()

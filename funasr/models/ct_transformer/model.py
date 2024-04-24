@@ -373,7 +373,7 @@ class CTTransformer(torch.nn.Module):
             else:
                 punc_array = torch.cat([punc_array, punctuations], dim=0)
         #print(max_fl, max_bs)
-        print("punc:", punc_time)
+        #print("punc:", punc_time)
         # post processing when using word level punc model
         if self.jieba_usr_dict is not None:
             len_tokens = len(tokens)

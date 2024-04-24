@@ -341,7 +341,7 @@ class FsmnVADStreaming(nn.Module):
 		output = self.fsmn_model([speech, in_cache0, in_cache1, in_cache2, in_cache3])
 		scores = torch.from_numpy(output[0])
 		fsmn_end = time.time()
-		print("fsmn:",fsmn_end-fsmn_start)
+		#print("fsmn:",fsmn_end-fsmn_start)
 
 		assert scores.shape[1] == feats.shape[1], "The shape between feats and scores does not match"
 		self.vad_opts.nn_eval_block_size = scores.shape[1]

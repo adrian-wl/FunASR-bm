@@ -1,17 +1,22 @@
 一、环境配置
 
-1.安装torch,torchaudio
+1.安装torch,torchaudio:
 pip3 install torch torchaudio
 
-2.安装funasr
+2.安装funasr:
+git clone https://github.com/adrian-wl/FunASR-bm.git
 cd FunASR-bm && pip3 install -e ./
 
-3.安装tpu_perf
+3.安装tpu_perf:
 pip3 install tpu_perf-1.2.35-py3-none-manylinux2014_x86_64.whl
 
 二、运行离线语音识别demo
 
+1.将bmodel.zip放在FunASR-bm/目录下, 并解压:
+cd FunASR-bm && unzip bmodel.zip
+
+2.运行脚本:
 python3 infer.py
 
-1. infer.py有两个可配置的参数, input_path(语音文件的路径), dev_id(bm1684x的device id)
-2. bmodel/放在FunASR-bm/目录下
+infer.py有两个可配置的参数, input_path(语音文件的路径), dev_id(bm1684x的device id)
+
