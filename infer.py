@@ -2,7 +2,7 @@ from funasr import AutoModel
 import time
 
 # setting
-dev_id = 0      ## bm1684x device id
+dev_id = 0                              ## bm1684x device id
 input_path = "./vad_example.wav"        ## input audio path
 
 # offline asr demo
