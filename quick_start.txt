@@ -12,7 +12,7 @@ pip3 install tpu_perf-1.2.35-py3-none-manylinux2014_x86_64.whl
 
 二、运行离线语音识别demo
 
-1.将bmodel.zip放在FunASR-bm/目录下, 并解压:
+1.获取bmodel.zip(https://drive.sophgo.vip/d/s/yCA0TPdXkbf1I22sqP1qbr3YQeaxHe1Y/ZMsC3jEmKOdktORmxAFPNfwgebKOMH89-jbjAf5UJTws), 将bmodel.zip放在FunASR-bm/目录下, 并解压:
 cd FunASR-bm && unzip bmodel.zip
 
 2.运行脚本:
