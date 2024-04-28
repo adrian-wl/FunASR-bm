@@ -7,15 +7,24 @@ pip3 install torch torchaudio
 git clone https://github.com/adrian-wl/FunASR-bm.git
 cd FunASR-bm && pip3 install -e ./
 
-3.安装tpu_perf:
+3.根据系统架构选择性地安装tpu_perf:
 pip3 install tpu_perf-1.2.35-py3-none-manylinux2014_x86_64.whl
+或者:
+pip3 install tpu_perf-1.2.35-py3-none-manylinux2014_aarch64.whl
 
 二、运行离线语音识别demo
 
-1.获取bmodel.zip(https://drive.sophgo.vip/d/s/yCA0TPdXkbf1I22sqP1qbr3YQeaxHe1Y/ZMsC3jEmKOdktORmxAFPNfwgebKOMH89-jbjAf5UJTws), 将bmodel.zip放在FunASR-bm/目录下, 并解压:
+1.获取模型文件bmodel.zip
+内部网盘:
+https://drive.sophgo.vip/d/s/yFTQU1zTNfcDeGF4yjdrqwruo6nMPPbV/VmZLXxcLuuM0Item53ome2BcDoU2wY_P-dLJgaQWcUQs
+百度网盘(提取码:fsjn):
+https://pan.baidu.com/s/1Bx3tg5AcE_rOt2PaMNY3xQ
+
+
+2.将bmodel.zip放在FunASR-bm/目录下, 并解压:
 cd FunASR-bm && unzip bmodel.zip
 
-2.运行脚本:
+3.运行脚本:
 python3 infer.py
 
 infer.py有两个可配置的参数, input_path(语音文件的路径), dev_id(bm1684x的device id)
