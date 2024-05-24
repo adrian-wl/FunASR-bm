@@ -370,7 +370,6 @@ class AutoModel:
                 end_idx = j + 1
                 speech_j, speech_lengths_j = slice_padding_audio_samples(speech, speech_lengths, sorted_data[beg_idx:end_idx])
                 results = self.inference(speech_j, input_len=None, model=model, kwargs=kwargs, **cfg)
-                print("ok")
                 if self.spk_model is not None:
                     # compose vad segments: [[start_time_sec, end_time_sec, speech], [...]]
                     for _b in range(len(speech_j)):
