@@ -14,7 +14,7 @@ model = AutoModel(model="iic/speech_paraformer-large-contextual_asr_nat-zh-cn-16
 # inference
 start_time = time.time()
 res = model.generate(input=input_path,
-                     batch_size_s=300,
+                     batch_size_s=30,
                      )
 end_time = time.time()
 print(res)
