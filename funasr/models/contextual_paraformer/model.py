@@ -71,6 +71,10 @@ class ContextualParaformer(Paraformer):
             logging.error("Unsupport bias encoder type: {}".format(bias_encoder_type))
         emb_weight = torch.load("./bmodel/asr/embedding_weight.pt")
         self.bias_embed.weight = emb_weight
+        self.bias_encoder._parameters['weight_ih_l0'] = torch.load("./bmodel/asr/weight_ih_l0.pt")
+        self.bias_encoder._parameters['weight_hh_l0'] = torch.load("./bmodel/asr/weight_hh_l0.pt")
+        self.bias_encoder._parameters['bias_ih_l0'] = torch.load("./bmodel/asr/bias_ih_l0.pt")
+        self.bias_encoder._parameters['bias_hh_l0'] = torch.load("./bmodel/asr/bias_hh_l0.pt")
 
         if self.target_buffer_length > 0:
             self.hotword_buffer = None
@@ -386,7 +390,7 @@ class ContextualParaformer(Paraformer):
         encoder_end = time.time()
         enc, hidden, alphas, token_num = torch.from_numpy(encoder_output[0]), torch.from_numpy(encoder_output[1]), torch.from_numpy(encoder_output[2]), torch.from_numpy(encoder_output[3])
         if isinstance(enc, tuple):
-            enc = enc[0]
+            enc = enc[0]                    
 
         acoustic_embeds, cif_peak = cif(hidden, alphas, 1.0)
         # if target_length is None and self.tail_threshold > 0.0:
@@ -419,7 +423,7 @@ class ContextualParaformer(Paraformer):
                                                                enforce_sorted=False)
             _, (h_n, _) = self.bias_encoder(hw_embed)
             hw_embed = h_n.repeat(encoder_out.shape[0], 1, 1)
-        predictor_end = time.time()
+        predictor_end = time.time()  
         decoder_output = self.decoder_model([enc.detach().numpy(), speech_lengths, acoustic_embeds.detach().numpy(), token_num.detach().numpy().astype(np.int32), hw_embed.detach().numpy()])
         decoder_out = torch.from_numpy(decoder_output[0])
         pre_token_length = token_num
