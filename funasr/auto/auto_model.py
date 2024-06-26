@@ -364,7 +364,8 @@ class AutoModel:
                 batch_size_ms_cum += (sorted_data[j][0][1] - sorted_data[j][0][0])
                 if j < n - 1 and (
                     batch_size_ms_cum + sorted_data[j + 1][0][1] - sorted_data[j + 1][0][0]) < batch_size and (
-                    sorted_data[j + 1][0][1] - sorted_data[j + 1][0][0]) < batch_size_threshold_ms:
+                    sorted_data[j + 1][0][1] - sorted_data[j + 1][0][0]) < batch_size_threshold_ms and (
+                    j + 1 - beg_idx < 10):  # 10 is upper limit of asr_bmodel's batch:
                     continue
                 batch_size_ms_cum = 0
                 end_idx = j + 1
