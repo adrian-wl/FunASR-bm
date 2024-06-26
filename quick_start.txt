@@ -16,9 +16,9 @@ pip3 install tpu_perf-1.2.35-py3-none-manylinux2014_aarch64.whl
 
 1.获取模型文件bmodel.zip
 内部网盘:
-https://drive.sophgo.vip/d/s/z0sitKZk8d5ijPZugvPCc3a9v0mMENcq/doWNX1Kg43l0b19ilDMJ6I6uumB9MoFg--rdARIhidgs
-百度网盘(提取码:iawb):
-https://pan.baidu.com/s/12hdY1Kq6SC-v-Iouwytv1Q
+https://drive.sophgo.vip/d/s/z2U11e5YbdYwbsi7Vygn2CiG0smErjLf/LfR30bfTGf9x7CUEXBAK5ZAzE0j7iWX9-yLlAH9-fdws
+百度网盘(提取码:k1ox):
+https://pan.baidu.com/s/1q92onUsZ2gpEea_o_TzckA 
 
 
 2.将bmodel.zip放在FunASR-bm/目录下, 并解压:
