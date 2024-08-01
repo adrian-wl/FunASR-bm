@@ -12,7 +12,9 @@ pip3 install tpu_perf-1.2.35-py3-none-manylinux2014_x86_64.whl
 或者:
 pip3 install tpu_perf-1.2.35-py3-none-manylinux2014_aarch64.whl
 
-二、运行离线语音识别demo
+
+
+二、离线语音识别demo
 
 1.获取模型文件bmodel.zip
 内部网盘:
@@ -29,3 +31,27 @@ python3 infer.py
 
 infer.py有两个可配置的参数, input_path(语音文件的路径), dev_id(bm1684x的device id)
 
+
+
+三、实时语音听写服务
+
+1.安装服务端、客户端所需环境：
+cd FunASR-bm/runtime/python/websocket
+pip3 install -r requirements_server.txt
+pip3 install -r requirements_client.txt
+
+2.获取实时语音识别模型文件asr_online.zip
+内部网盘:
+https://drive.sophgo.vip/d/s/zWDGTy8AlvaAIqqnzUqrjpdZ9fIVkhp8/5Pi9CK0b4WtG3c58wEdsn9j8OEqw0Kvd-k7TAhrWvjgs
+百度网盘(提取码:dztt):
+https://pan.baidu.com/s/1BDixDjzlmgqnWABXCbS_Rg
+
+
+3.将asr_online.zip放在FunASR-bm/bmodel/目录下，并解压：
+cd FunASR-bm/bmodel && unzip asr_online.zip
+
+2.启动服务端，dev_id设置为bm1684x的device id
+python3 runtime/python/websocket/funasr_wss_server.py --dev_id 0
+
+3.启动客户端，mode可选offline, online, 2pass
+python3 runtime/python/websocket/funasr_wss_client.py --mode offline, online, 2pass --audio_in input_path_of_audio

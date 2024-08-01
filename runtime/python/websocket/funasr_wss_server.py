@@ -22,7 +22,7 @@ parser.add_argument("--port",
                     help="grpc server port")
 parser.add_argument("--asr_model",
                     type=str,
-                    default="iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
+                    default="iic/speech_paraformer-large-contextual_asr_nat-zh-cn-16k-common-vocab8404",
                     help="model from modelscope")
 parser.add_argument("--asr_model_revision",
                     type=str,
@@ -46,7 +46,7 @@ parser.add_argument("--vad_model_revision",
                     help="")
 parser.add_argument("--punc_model",
                     type=str,
-                    default="iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727",
+                    default="iic/punc_ct-transformer_zh-cn-common-vocab272727-pytorch",
                     help="model from modelscope")
 parser.add_argument("--punc_model_revision",
                     type=str,
@@ -66,15 +66,18 @@ parser.add_argument("--ncpu",
                     help="cpu cores")
 parser.add_argument("--certfile",
                     type=str,
-                    default="../../ssl_key/server.crt",
+                    default="runtime/ssl_key/server.crt",
                     required=False,
                     help="certfile for ssl")
-
 parser.add_argument("--keyfile",
                     type=str,
-                    default="../../ssl_key/server.key",
+                    default="runtime/ssl_key/server.key",
                     required=False,
                     help="keyfile for ssl")
+parser.add_argument("--dev_id",
+                    type=int,
+                    default=0,
+                    help="dev id of tpu")
 args = parser.parse_args()
 
 
@@ -91,6 +94,7 @@ model_asr = AutoModel(model=args.asr_model,
                       device=args.device,
                       disable_pbar=True,
                       disable_log=True,
+					  dev_id=args.dev_id,
                       )
 # asr
 model_asr_streaming = AutoModel(model=args.asr_model_online,
@@ -100,6 +104,7 @@ model_asr_streaming = AutoModel(model=args.asr_model_online,
                                 device=args.device,
                                 disable_pbar=True,
                                 disable_log=True,
+								dev_id=args.dev_id,
                                 )
 # vad
 model_vad = AutoModel(model=args.vad_model,
@@ -109,6 +114,7 @@ model_vad = AutoModel(model=args.vad_model,
                       device=args.device,
                       disable_pbar=True,
                       disable_log=True,
+					  dev_id=args.dev_id,
                       # chunk_size=60,
                       )
 
@@ -120,6 +126,7 @@ if args.punc_model != "":
 	                       device=args.device,
 	                       disable_pbar=True,
                            disable_log=True,
+						   dev_id=args.dev_id,
 	                       )
 else:
 	model_punc = None
