@@ -430,8 +430,8 @@ class ParaformerStreaming(Paraformer):
         
         # encoder bmodel
         speech = speech.detach().numpy()
-        start_idx = (torch.tensor([cache['encoder']['start_idx']], dtype=torch.int64).detach().numpy()).astype(np.int32)
-        #start_idx = (torch.tensor([0], dtype=torch.int64).detach().numpy()).astype(np.int32)
+        # start_idx = (torch.tensor([cache['encoder']['start_idx']], dtype=torch.int64).detach().numpy()).astype(np.int32)
+        start_idx = (torch.tensor([0], dtype=torch.int64).detach().numpy()).astype(np.int32)
         chunk_size = (torch.tensor(cache['encoder']['chunk_size'], dtype=torch.int64).detach().numpy()).astype(np.int32)
         feats = cache['encoder']['feats'].detach().numpy()
         outputs = self.encoder_bmodel([speech, start_idx, chunk_size, feats])
