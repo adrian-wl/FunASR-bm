@@ -326,21 +326,31 @@ class FsmnVADStreaming(nn.Module):
 				                0.000001))
 
 	def ComputeScores(self, feats: torch.Tensor, cache: dict = {}) -> None:
-		fsmn_start = time.time()
+		#fsmn_start = time.time()
 		#import pdb; pdb.set_trace() #cache["encoder"] is None, self.encoder.forward will update cache["encoder"]
 		#scores = self.encoder(feats, cache=cache["encoder"]).to('cpu')  # return B * T * D
 
 		# use onnx/bmodel to instead(give in_cache as 0)
 		cache_frames = self.encoder_conf.get("lorder") + self.encoder_conf.get("rorder") - 1
 		speech = feats.detach().numpy()
-		in_cache0 = torch.zeros(1, self.encoder_conf.get("proj_dim"), cache_frames, 1).detach().numpy()
-		in_cache1 = torch.zeros(1, self.encoder_conf.get("proj_dim"), cache_frames, 1).detach().numpy()
-		in_cache2 = torch.zeros(1, self.encoder_conf.get("proj_dim"), cache_frames, 1).detach().numpy()
-		in_cache3 = torch.zeros(1, self.encoder_conf.get("proj_dim"), cache_frames, 1).detach().numpy()
+		if cache["encoder"].get("cache_layer_0") is None:
+			in_cache0 = torch.zeros(1, self.encoder_conf.get("proj_dim"), cache_frames, 1).detach().numpy()
+			in_cache1 = torch.zeros(1, self.encoder_conf.get("proj_dim"), cache_frames, 1).detach().numpy()
+			in_cache2 = torch.zeros(1, self.encoder_conf.get("proj_dim"), cache_frames, 1).detach().numpy()
+			in_cache3 = torch.zeros(1, self.encoder_conf.get("proj_dim"), cache_frames, 1).detach().numpy()
+		else:
+			in_cache0 = cache["encoder"]["cache_layer_0"].detach().numpy()
+			in_cache1 = cache["encoder"]["cache_layer_1"].detach().numpy()
+			in_cache2 = cache["encoder"]["cache_layer_2"].detach().numpy()
+			in_cache3 = cache["encoder"]["cache_layer_3"].detach().numpy()
 		#run bmodel
 		output = self.fsmn_model([speech, in_cache0, in_cache1, in_cache2, in_cache3])
 		scores = torch.from_numpy(output[0])
-		fsmn_end = time.time()
+		cache["encoder"]["cache_layer_0"] = torch.from_numpy(output[1])
+		cache["encoder"]["cache_layer_1"] = torch.from_numpy(output[2])
+		cache["encoder"]["cache_layer_2"] = torch.from_numpy(output[3])
+		cache["encoder"]["cache_layer_3"] = torch.from_numpy(output[4])
+		#fsmn_end = time.time()
 		#print("fsmn:",fsmn_end-fsmn_start)
 
 		assert scores.shape[1] == feats.shape[1], "The shape between feats and scores does not match"
