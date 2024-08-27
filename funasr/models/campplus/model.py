@@ -17,6 +17,8 @@ from funasr.utils.load_utils import load_audio_text_image_video
 from funasr.models.campplus.components import DenseLayer, StatsPool, \
     TDNNLayer, CAMDenseTDNNBlock, TransitLayer, get_nonlinear, FCM
 
+from funasr.utils.run_bmodel import EngineOV
+import numpy as np
 
 if LooseVersion(torch.__version__) >= LooseVersion("1.6.0"):
     from torch.cuda.amp import autocast
@@ -96,6 +98,8 @@ class CAMPPlus(torch.nn.Module):
                 if m.bias is not None:
                     torch.nn.init.zeros_(m.bias)
 
+        self.bmodel = EngineOV("../../campplus/gen_large/campplus_1684x_f32.bmodel")
+
     def forward(self, x):
         x = x.permute(0, 2, 1)  # (B,T,F) => (B,F,T)
         x = self.head(x)
@@ -124,4 +128,16 @@ class CAMPPlus(torch.nn.Module):
         meta_data["extract_feat"] = f"{time3 - time2:0.3f}"
         meta_data["batch_data_time"] = np.array(speech_times).sum().item() / 16000.0
         results = [{"spk_embedding": self.forward(speech.to(torch.float32))}]
+
+        # # onnx
+        # import onnxruntime as ort
+        # onnx_path = "../../3d_speaker/3D-Speaker/campplus_.onnx"
+        # session = ort.InferenceSession(onnx_path)
+        # outputs = session.run(None, {"feature": speech.detach().numpy()})
+        # results = [{"spk_embedding": torch.from_numpy(outputs[0])}]
+        
+        # bmodel
+        # outputs = self.bmodel([(speech.to(torch.float32)).detach().numpy()])
+        # results = [{"spk_embedding": torch.from_numpy(outputs[0])}]
+
         return results, meta_data
