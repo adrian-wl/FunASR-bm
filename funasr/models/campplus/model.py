@@ -98,7 +98,7 @@ class CAMPPlus(torch.nn.Module):
                 if m.bias is not None:
                     torch.nn.init.zeros_(m.bias)
 
-        self.bmodel = EngineOV("../../campplus/gen_large/campplus_1684x_f32.bmodel")
+        # self.bmodel = EngineOV("../../campplus/gen_large/campplus_1684x_f32.bmodel")
 
     def forward(self, x):
         x = x.permute(0, 2, 1)  # (B,T,F) => (B,F,T)
