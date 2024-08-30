@@ -69,6 +69,7 @@ class ContextualParaformer(Paraformer):
             self.bias_embed = torch.nn.Embedding(self.vocab_size, inner_dim)
         else:
             logging.error("Unsupport bias encoder type: {}".format(bias_encoder_type))
+
         emb_weight = torch.load("./bmodel/asr/embedding_weight.pt")
         self.bias_embed.weight = emb_weight
         self.bias_encoder._parameters['weight_ih_l0'] = torch.load("./bmodel/asr/weight_ih_l0.pt")

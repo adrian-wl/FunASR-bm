@@ -54,8 +54,34 @@ class BiCifParaformer(Paraformer):
     ):
         super().__init__(*args, **kwargs)
 
-        # self.encoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_encoder_bm1684x_f32.bmodel")
-        # self.decoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_decoder_bm1684x_f32.bmodel")
+        self.encoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_encoder_bm1684x_f32.bmodel")
+        self.decoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_decoder_bm1684x_f32.bmodel")
+        # self.encoder_bmodel = EngineOV("/home/qianjun/work/workspace/tpu-mlir/case/asr/gen_bicif_paraformer/gen_1batch/bicif_encoder_bm1684x_f32.bmodel")
+        # self.decoder_bmodel = EngineOV("/home/qianjun/work/workspace/tpu-mlir/case/asr/gen_bicif_paraformer/gen_1batch/bicif_decoder_bm1684x_f32.bmodel")
+
+        #load
+        self.predictor.cif_conv1d.weight = torch.load("bmodel/asr_bicif/cif_conv1d_weight.pt")
+        self.predictor.cif_conv1d.bias = torch.load("bmodel/asr_bicif/cif_conv1d_bias.pt")
+
+        self.predictor.cif_output.weight = torch.load("bmodel/asr_bicif/cif_output_weight.pt")
+        self.predictor.cif_output.bias = torch.load("bmodel/asr_bicif/cif_output_bias.pt")
+
+        self.predictor.upsample_cnn.weight = torch.load("bmodel/asr_bicif/upsample_cnn_weight.pt")
+        self.predictor.upsample_cnn.bias = torch.load("bmodel/asr_bicif/upsample_cnn_bias.pt")
+
+        self.predictor.blstm._parameters["weight_ih_l0"] = torch.load("bmodel/asr_bicif/weight_ih_l0.pt")
+        self.predictor.blstm._parameters["weight_hh_l0"] = torch.load("bmodel/asr_bicif/weight_hh_l0.pt")
+        self.predictor.blstm._parameters["bias_ih_l0"] = torch.load("bmodel/asr_bicif/bias_ih_l0.pt")
+        self.predictor.blstm._parameters["bias_hh_l0"] = torch.load("bmodel/asr_bicif/bias_hh_l0.pt")
+        self.predictor.blstm._parameters["weight_ih_l0_reverse"] = torch.load("bmodel/asr_bicif/weight_ih_l0_reverse.pt")
+        self.predictor.blstm._parameters["weight_hh_l0_reverse"] = torch.load("bmodel/asr_bicif/weight_hh_l0_reverse.pt")
+        self.predictor.blstm._parameters["bias_ih_l0_reverse"] = torch.load("bmodel/asr_bicif/bias_ih_l0_reverse.pt")
+        self.predictor.blstm._parameters["bias_hh_l0_reverse"] = torch.load("bmodel/asr_bicif/bias_hh_l0_reverse.pt")
+
+        self.predictor.cif_output2.weight = torch.load("bmodel/asr_bicif/cif_output2_weight.pt")
+        self.predictor.cif_output2.bias = torch.load("bmodel/asr_bicif/cif_output2_bias.pt")
+
+
 
     def _calc_pre2_loss(
         self,
@@ -261,15 +287,15 @@ class BiCifParaformer(Paraformer):
         speech = speech.to(device=kwargs["device"])
         speech_lengths = speech_lengths.to(device=kwargs["device"])
         
-        # Encoder
-        encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
-        if isinstance(encoder_out, tuple):
-            encoder_out = encoder_out[0]
+        # # Encoder
+        # encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
+        # if isinstance(encoder_out, tuple):
+        #     encoder_out = encoder_out[0]
 
-        # # Encoder bmodel
-        # outputs = self.encoder_bmodel([speech.detach().numpy(), speech_lengths.detach().numpy()])
-        # encoder_out = torch.from_numpy(outputs[0])
-        # encoder_out_lens = speech_lengths
+        # Encoder bmodel
+        outputs = self.encoder_bmodel([speech.detach().numpy(), speech_lengths.detach().numpy()])
+        encoder_out = torch.from_numpy(outputs[0])
+        encoder_out_lens = speech_lengths
 
         # predictor
         predictor_outs = self.calc_predictor(encoder_out, encoder_out_lens)
@@ -278,13 +304,13 @@ class BiCifParaformer(Paraformer):
         pre_token_length = pre_token_length.round().long()
         if torch.max(pre_token_length) < 1:
             return []
-        decoder_outs = self.cal_decoder_with_predictor(encoder_out, encoder_out_lens, pre_acoustic_embeds,
-                                                       pre_token_length)
-        decoder_out, ys_pad_lens = decoder_outs[0], decoder_outs[1]
+        # decoder_outs = self.cal_decoder_with_predictor(encoder_out, encoder_out_lens, pre_acoustic_embeds,
+        #                                                pre_token_length)
+        # decoder_out, ys_pad_lens = decoder_outs[0], decoder_outs[1]
 
-        # # decoder bmodel
-        # outputs = self.decoder_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32), pre_acoustic_embeds.detach().numpy(), pre_token_length.detach().numpy().astype(np.int32)])
-        # decoder_out = torch.from_numpy(outputs[0])
+        # decoder bmodel
+        outputs = self.decoder_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32), pre_acoustic_embeds.detach().numpy(), pre_token_length.detach().numpy().astype(np.int32)])
+        decoder_out = torch.from_numpy(outputs[0])
         
         # BiCifParaformer, test no bias cif2
         _, _, us_alphas, us_peaks = self.calc_predictor_timestamp(encoder_out, encoder_out_lens,

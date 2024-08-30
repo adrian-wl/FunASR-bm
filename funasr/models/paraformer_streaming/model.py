@@ -64,7 +64,7 @@ class ParaformerStreaming(Paraformer):
             self.decoder_attention_chunk_type = kwargs.get("decoder_attention_chunk_type", "chunk")
 
         self.encoder_bmodel = EngineOV("bmodel/asr_online/online_encoder_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
-        self.decoder0_bmodel = EngineOV("bmodel/asr_online/online_decoder0_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
+        #self.decoder0_bmodel = EngineOV("bmodel/asr_online/online_decoder0_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
         self.decoder1_bmodel = EngineOV("bmodel/asr_online/online_decoder1_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
 
         self.predictor.cif_conv1d.weight = torch.load("bmodel/asr_online/cif_conv1d_weight.pt")
@@ -463,7 +463,12 @@ class ParaformerStreaming(Paraformer):
         lens = (pre_token_length.detach().numpy()).astype(np.int32)
         input = [encoder_out, pre_acoustic_embeds]
         if cache['decoder']['decode_fsmn'] is None: 
-            outputs = self.decoder0_bmodel(input)
+            # outputs = self.decoder0_bmodel(input)
+            input.append(lens)
+            N, C, T = encoder_out.shape
+            for i in range(16):
+                input.append(np.zeros((N, T, C)).astype(np.float32))
+            outputs = self.decoder1_bmodel(input)
         else:
             input.append(lens)
             for i in range(16):
