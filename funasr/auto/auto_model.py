@@ -219,9 +219,6 @@ class AutoModel:
         deep_update(model_conf, kwargs.get("model_conf", {}))
         deep_update(model_conf, kwargs)
         model = model_class(**model_conf, vocab_size=vocab_size)
-        # if kwargs['model'] == 'ContextualParaformer':
-        #     emb_weight = torch.load("/workspace/tpu-mlir/case/asr/contextual_paraformer/embedding_weight.pt")
-        #     model.bias_embed.weight = emb_weight
         model.to(device)
 
         # #init_param
@@ -239,9 +236,6 @@ class AutoModel:
         #         )
         #     else:
         #         print(f"error, init_param does not exist!: {init_param}")
-
-        # if kwargs['model'] == 'ContextualParaformer':
-        #     torch.save(model.bias_embed.weight, '/workspace/tpu-mlir/case/asr/contextual_paraformer/embedding_weight.pt')
 
         return model, kwargs
 
