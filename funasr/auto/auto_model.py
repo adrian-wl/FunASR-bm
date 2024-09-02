@@ -156,7 +156,6 @@ class AutoModel:
         dev_id = kwargs.get("dev_id", 0)
         if "model_conf" not in kwargs:
             logging.info("download models from model hub: {}".format(kwargs.get("hub", "ms")))
-            print(kwargs['model'])
             kwargs = download_model(**kwargs)
 
         # if kwargs['model'] == 'iic/speech_paraformer-large-contextual_asr_nat-zh-cn-16k-common-vocab8404':
@@ -172,7 +171,7 @@ class AutoModel:
         #     kwargs = {'model': 'ParaformerStreaming', 'model_conf': {'ctc_weight': 0.0, 'lsm_weight': 0.1, 'length_normalized_loss': True, 'predictor_weight': 1.0, 'predictor_bias': 1, 'sampling_ratio': 0.75}, 'encoder': 'SANMEncoderChunkOpt', 'encoder_conf': {'output_size': 512, 'attention_heads': 4, 'linear_units': 2048, 'num_blocks': 50, 'dropout_rate': 0.1, 'positional_dropout_rate': 0.1, 'attention_dropout_rate': 0.1, 'input_layer': 'pe_online', 'pos_enc_class': 'SinusoidalPositionEncoder', 'normalize_before': True, 'kernel_size': 11, 'sanm_shfit': 0, 'selfattention_layer_type': 'sanm', 'chunk_size': [12, 15], 'stride': [8, 10], 'pad_left': [0, 0], 'encoder_att_look_back_factor': [4, 4], 'decoder_att_look_back_factor': [1, 1]}, 'decoder': 'ParaformerSANMDecoder', 'decoder_conf': {'attention_heads': 4, 'linear_units': 2048, 'num_blocks': 16, 'dropout_rate': 0.1, 'positional_dropout_rate': 0.1, 'self_attention_dropout_rate': 0.1, 'src_attention_dropout_rate': 0.1, 'att_layer_num': 16, 'kernel_size': 11, 'sanm_shfit': 5}, 'predictor': 'CifPredictorV2', 'predictor_conf': {'idim': 512, 'threshold': 1.0, 'l_order': 1, 'r_order': 1, 'tail_threshold': 0.45}, 'frontend': 'WavFrontendOnline', 'frontend_conf': {'fs': 16000, 'window': 'hamming', 'n_mels': 80, 'frame_length': 25, 'frame_shift': 10, 'lfr_m': 7, 'lfr_n': 6, 'cmvn_file': './bmodel/asr_online/am.mvn'}, 'specaug': 'SpecAugLFR', 'specaug_conf': {'apply_time_warp': False, 'time_warp_window': 5, 'time_warp_mode': 'bicubic', 'apply_freq_mask': True, 'freq_mask_width_range': [0, 30], 'lfr_rate': 6, 'num_freq_mask': 1, 'apply_time_mask': True, 'time_mask_width_range': [0, 12], 'num_time_mask': 1}, 'train_conf': {'accum_grad': 1, 'grad_clip': 5, 'max_epoch': 150, 'val_scheduler_criterion': ['valid', 'acc'], 'best_model_criterion': [['valid', 'acc', 'max']], 'keep_nbest_models': 10, 'log_interval': 50}, 'optim': 'adam', 'optim_conf': {'lr': 0.0005}, 'scheduler': 'warmuplr', 'scheduler_conf': {'warmup_steps': 30000}, 'dataset': 'AudioDataset', 'dataset_conf': {'index_ds': 'IndexDSJsonl', 'batch_sampler': 'DynamicBatchLocalShuffleSampler', 'batch_type': 'example', 'batch_size': 1, 'max_token_length': 2048, 'buffer_size': 500, 'shuffle': True, 'num_workers': 0}, 'tokenizer': 'CharTokenizer', 'tokenizer_conf': {'unk_symbol': '<unk>', 'split_with_space': True, 'token_list': './bmodel/asr_online/tokens.json', 'seg_dict_file': './bmodel/asr_online/seg_dict'}, 'ctc_conf': {'dropout_rate': 0.0, 'ctc_type': 'builtin', 'reduce': True, 'ignore_nan_grad': True}, 'normalize': None, 'init_param': '/root/.cache/modelscope/hub/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/model.pt', 'config': '/root/.cache/modelscope/hub/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/config.yaml', 'model_revision': 'v2.0.4', 'ngpu': 1, 'ncpu': 4, 'device': 'cuda', 'disable_pbar': True, 'disable_log': True, 'model_path': '/root/.cache/modelscope/hub/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online'}
         # elif kwargs['model'] == "CTTransformerStreaming":
         #     kwargs = {'model': 'CTTransformerStreaming', 'model_conf': {'ignore_id': 0, 'embed_unit': 256, 'att_unit': 256, 'dropout_rate': 0.1, 'punc_list': ['<unk>', '_', '，', '。', '？', '、'], 'punc_weight': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 'sentence_end_id': 3}, 'encoder': 'SANMVadEncoder', 'encoder_conf': {'input_size': 256, 'output_size': 256, 'attention_heads': 8, 'linear_units': 1024, 'num_blocks': 3, 'dropout_rate': 0.1, 'positional_dropout_rate': 0.1, 'attention_dropout_rate': 0.0, 'input_layer': 'pe', 'pos_enc_class': 'SinusoidalPositionEncoder', 'normalize_before': True, 'kernel_size': 11, 'sanm_shfit': 5, 'selfattention_layer_type': 'sanm', 'padding_idx': 0}, 'tokenizer': 'CharTokenizer', 'tokenizer_conf': {'unk_symbol': '<unk>', 'token_list': '/root/.cache/modelscope/hub/iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727/tokens.json'}, 'init_param': '/root/.cache/modelscope/hub/iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727/model.pt', 'config': '/root/.cache/modelscope/hub/iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727/config.yaml', 'model_revision': 'master', 'device': 'cpu', 'dev_id': 0, 'model_path': '/root/.cache/modelscope/hub/iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727'}
-        
+
         kwargs['dev_id'] = dev_id
         set_all_random_seed(kwargs.get("seed", 0))
 
@@ -208,16 +207,18 @@ class AutoModel:
 
         # build model
         model_class = tables.model_classes.get(kwargs["model"])
-        # from funasr.models.contextual_paraformer.model import ContextualParaformer
-        # from funasr.models.ct_transformer.model import CTTransformer
-        # from funasr.models.fsmn_vad_streaming.model import FsmnVADStreaming
-        # from funasr.models.paraformer_streaming.model import ParaformerStreaming
-        # from funasr.models.ct_transformer_streaming.model import CTTransformerStreaming
-        # if kwargs["model"] == 'ContextualParaformer': model_class = ContextualParaformer
-        # elif kwargs["model"] == 'CTTransformer': model_class = CTTransformer
-        # elif kwargs["model"] == 'FsmnVADStreaming': model_class = FsmnVADStreaming
-        # elif kwargs["model"] == 'ParaformerStreaming': model_class = ParaformerStreaming
-        # elif kwargs["model"] == 'CTTransformerStreaming': model_class = CTTransformerStreaming
+        from funasr.models.contextual_paraformer.model import ContextualParaformer
+        from funasr.models.ct_transformer.model import CTTransformer
+        from funasr.models.fsmn_vad_streaming.model import FsmnVADStreaming
+        from funasr.models.paraformer_streaming.model import ParaformerStreaming
+        from funasr.models.ct_transformer_streaming.model import CTTransformerStreaming
+        from funasr.models.bicif_paraformer.model import BiCifParaformer
+        if kwargs["model"] == 'ContextualParaformer': model_class = ContextualParaformer
+        elif kwargs["model"] == 'CTTransformer': model_class = CTTransformer
+        elif kwargs["model"] == 'FsmnVADStreaming': model_class = FsmnVADStreaming
+        elif kwargs["model"] == 'ParaformerStreaming': model_class = ParaformerStreaming
+        elif kwargs["model"] == 'CTTransformerStreaming': model_class = CTTransformerStreaming
+        elif kwargs["model"] == 'BiCifParaformer': model_class = BiCifParaformer
         model_conf = {}
         deep_update(model_conf, kwargs.get("model_conf", {}))
         deep_update(model_conf, kwargs)
