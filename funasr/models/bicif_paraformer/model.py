@@ -46,7 +46,7 @@ class BiCifParaformer(Paraformer):
     Paper2: Achieving timestamp prediction while recognizing with non-autoregressive end-to-end ASR model
     https://arxiv.org/abs/2301.12343
     """
-    
+
     def __init__(
         self,
         *args,
@@ -56,6 +56,8 @@ class BiCifParaformer(Paraformer):
 
         self.encoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_encoder_bm1684x_f32.bmodel")
         self.decoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_decoder_bm1684x_f32.bmodel")
+        # self.encoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_encoder_bm1688_f32.bmodel")
+        # self.decoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_decoder_bm1688_f32.bmodel")
         # self.encoder_bmodel = EngineOV("/home/qianjun/work/workspace/tpu-mlir/case/asr/gen_bicif_paraformer/gen_1batch/bicif_encoder_bm1684x_f32.bmodel")
         # self.decoder_bmodel = EngineOV("/home/qianjun/work/workspace/tpu-mlir/case/asr/gen_bicif_paraformer/gen_1batch/bicif_decoder_bm1684x_f32.bmodel")
 
@@ -96,13 +98,13 @@ class BiCifParaformer(Paraformer):
             _, ys_pad = add_sos_eos(ys_pad, self.sos, self.eos, self.ignore_id)
             ys_pad_lens = ys_pad_lens + self.predictor_bias
         _, _, _, _, pre_token_length2 = self.predictor(encoder_out, ys_pad, encoder_out_mask, ignore_id=self.ignore_id)
-        
+
         # loss_pre = self.criterion_pre(ys_pad_lens.type_as(pre_token_length), pre_token_length)
         loss_pre2 = self.criterion_pre(ys_pad_lens.type_as(pre_token_length2), pre_token_length2)
-        
+
         return loss_pre2
-    
-    
+
+
     def _calc_att_loss(
         self,
         encoder_out: torch.Tensor,
@@ -118,7 +120,7 @@ class BiCifParaformer(Paraformer):
         pre_acoustic_embeds, pre_token_length, _, pre_peak_index, _ = self.predictor(encoder_out, ys_pad,
                                                                                      encoder_out_mask,
                                                                                      ignore_id=self.ignore_id)
-        
+
         # 0. sampler
         decoder_out_1st = None
         if self.sampling_ratio > 0.0:
@@ -126,13 +128,13 @@ class BiCifParaformer(Paraformer):
                                                            pre_acoustic_embeds)
         else:
             sematic_embeds = pre_acoustic_embeds
-        
+
         # 1. Forward decoder
         decoder_outs = self.decoder(
             encoder_out, encoder_out_lens, sematic_embeds, ys_pad_lens
         )
         decoder_out, _ = decoder_outs[0], decoder_outs[1]
-        
+
         if decoder_out_1st is None:
             decoder_out_1st = decoder_out
         # 2. Compute attention loss
@@ -143,14 +145,14 @@ class BiCifParaformer(Paraformer):
             ignore_label=self.ignore_id,
         )
         loss_pre = self.criterion_pre(ys_pad_lens.type_as(pre_token_length), pre_token_length)
-        
+
         # Compute cer/wer using attention-decoder
         if self.training or self.error_calculator is None:
             cer_att, wer_att = None, None
         else:
             ys_hat = decoder_out_1st.argmax(dim=-1)
             cer_att, wer_att = self.error_calculator(ys_hat.cpu(), ys_pad.cpu())
-        
+
         return loss_att, acc_att, cer_att, wer_att, loss_pre
 
 
@@ -171,8 +173,8 @@ class BiCifParaformer(Paraformer):
                                                                                             encoder_out_mask,
                                                                                             token_num)
         return ds_alphas, ds_cif_peak, us_alphas, us_peaks
-    
-    
+
+
     def forward(
         self,
         speech: torch.Tensor,
@@ -192,9 +194,9 @@ class BiCifParaformer(Paraformer):
             text_lengths = text_lengths[:, 0]
         if len(speech_lengths.size()) > 1:
             speech_lengths = speech_lengths[:, 0]
-        
+
         batch_size = speech.shape[0]
-        
+
         # Encoder
         encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
 
@@ -202,13 +204,13 @@ class BiCifParaformer(Paraformer):
         loss_ctc, cer_ctc = None, None
         loss_pre = None
         stats = dict()
-        
+
         # decoder: CTC branch
         if self.ctc_weight != 0.0:
             loss_ctc, cer_ctc = self._calc_ctc_loss(
                 encoder_out, encoder_out_lens, text, text_lengths
             )
-            
+
             # Collect CTC branch stats
             stats["loss_ctc"] = loss_ctc.detach() if loss_ctc is not None else None
             stats["cer_ctc"] = cer_ctc
@@ -218,18 +220,18 @@ class BiCifParaformer(Paraformer):
         loss_att, acc_att, cer_att, wer_att, loss_pre = self._calc_att_loss(
             encoder_out, encoder_out_lens, text, text_lengths
         )
-        
+
         loss_pre2 = self._calc_pre2_loss(
             encoder_out, encoder_out_lens, text, text_lengths
         )
-        
+
         # 3. CTC-Att loss definition
         if self.ctc_weight == 0.0:
             loss = loss_att + loss_pre * self.predictor_weight + loss_pre2 * self.predictor_weight * 0.5
         else:
             loss = self.ctc_weight * loss_ctc + (
                 1 - self.ctc_weight) * loss_att + loss_pre * self.predictor_weight + loss_pre2 * self.predictor_weight * 0.5
-        
+
         # Collect Attn branch stats
         stats["loss_att"] = loss_att.detach() if loss_att is not None else None
         stats["acc"] = acc_att
@@ -237,13 +239,13 @@ class BiCifParaformer(Paraformer):
         stats["wer"] = wer_att
         stats["loss_pre"] = loss_pre.detach().cpu() if loss_pre is not None else None
         stats["loss_pre2"] = loss_pre2.detach().cpu()
-        
+
         stats["loss"] = torch.clone(loss.detach())
-        
+
         # force_gatherable: to-device and to-tensor if scalar for DataParallel
         if self.length_normalized_loss:
             batch_size = int((text_lengths + self.predictor_bias).sum())
-        
+
         loss, stats, weight = force_gatherable((loss, stats, batch_size), loss.device)
         return loss, stats, weight
 
@@ -256,7 +258,7 @@ class BiCifParaformer(Paraformer):
                  frontend=None,
                  **kwargs,
                  ):
-        
+
         # init beamsearch
         is_use_ctc = kwargs.get("decoding_ctc_weight", 0.0) > 0.00001 and self.ctc != None
         is_use_lm = kwargs.get("lm_weight", 0.0) > 0.00001 and kwargs.get("lm_file", None) is not None
@@ -264,7 +266,7 @@ class BiCifParaformer(Paraformer):
             logging.info("enable beam_search")
             self.init_beam_search(**kwargs)
             self.nbest = kwargs.get("nbest", 1)
-        
+
         meta_data = {}
         # if isinstance(data_in, torch.Tensor):  # fbank
         #     speech, speech_lengths = data_in, data_lengths
@@ -283,10 +285,10 @@ class BiCifParaformer(Paraformer):
         time3 = time.perf_counter()
         meta_data["extract_feat"] = f"{time3 - time2:0.3f}"
         meta_data["batch_data_time"] = speech_lengths.sum().item() * frontend.frame_shift * frontend.lfr_n / 1000
-        
+
         speech = speech.to(device=kwargs["device"])
         speech_lengths = speech_lengths.to(device=kwargs["device"])
-        
+
         # # Encoder
         # encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
         # if isinstance(encoder_out, tuple):
@@ -311,11 +313,11 @@ class BiCifParaformer(Paraformer):
         # decoder bmodel
         outputs = self.decoder_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32), pre_acoustic_embeds.detach().numpy(), pre_token_length.detach().numpy().astype(np.int32)])
         decoder_out = torch.from_numpy(outputs[0])
-        
+
         # BiCifParaformer, test no bias cif2
         _, _, us_alphas, us_peaks = self.calc_predictor_timestamp(encoder_out, encoder_out_lens,
                                                                   pre_token_length)
-        
+
         results = []
         b, n, d = decoder_out.size()
         for i in range(b):
@@ -326,10 +328,10 @@ class BiCifParaformer(Paraformer):
                     x=x, am_scores=am_scores, maxlenratio=kwargs.get("maxlenratio", 0.0),
                     minlenratio=kwargs.get("minlenratio", 0.0)
                 )
-                
+
                 nbest_hyps = nbest_hyps[: self.nbest]
             else:
-                
+
                 yseq = am_scores.argmax(dim=-1)
                 score = am_scores.max(dim=-1)[0]
                 score = torch.sum(score, dim=-1)
@@ -344,34 +346,34 @@ class BiCifParaformer(Paraformer):
                     if not hasattr(self, "writer"):
                         self.writer = DatadirWriter(kwargs.get("output_dir"))
                     ibest_writer = self.writer[f"{nbest_idx+1}best_recog"]
-                    
+
                 # remove sos/eos and get results
                 last_pos = -1
                 if isinstance(hyp.yseq, list):
                     token_int = hyp.yseq[1:last_pos]
                 else:
                     token_int = hyp.yseq[1:last_pos].tolist()
-                
+
                 # remove blank symbol id, which is assumed to be 0
                 token_int = list(filter(lambda x: x != self.eos and x != self.sos and x != self.blank_id, token_int))
-                
+
                 if tokenizer is not None:
                     # Change integer-ids to tokens
                     token = tokenizer.ids2tokens(token_int)
                     text = tokenizer.tokens2text(token)
-                    
+
                     _, timestamp = ts_prediction_lfr6_standard(us_alphas[i][:encoder_out_lens[i] * 3],
                                                                us_peaks[i][:encoder_out_lens[i] * 3],
                                                                copy.copy(token),
                                                                vad_offset=kwargs.get("begin_time", 0))
-                    
+
                     text_postprocessed, time_stamp_postprocessed, word_lists = postprocess_utils.sentence_postprocess(
                         token, timestamp)
 
                     result_i = {"key": key[i], "text": text_postprocessed,
                                 "timestamp": time_stamp_postprocessed,
                                 }
-                    
+
                     if ibest_writer is not None:
                         ibest_writer["token"][key[i]] = " ".join(token)
                         # ibest_writer["text"][key[i]] = text
@@ -380,7 +382,7 @@ class BiCifParaformer(Paraformer):
                 else:
                     result_i = {"key": key[i], "token_int": token_int}
                 results.append(result_i)
-        
+
         return results, meta_data
 
     def export(self, **kwargs):

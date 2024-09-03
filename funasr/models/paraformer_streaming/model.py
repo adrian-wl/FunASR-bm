@@ -43,15 +43,15 @@ class ParaformerStreaming(Paraformer):
     Paraformer: Fast and Accurate Parallel Transformer for Non-autoregressive End-to-End Speech Recognition
     https://arxiv.org/abs/2206.08317
     """
-    
+
     def __init__(
         self,
         *args,
         **kwargs,
     ):
-        
+
         super().__init__(*args, **kwargs)
-        
+
         # import pdb;
         # pdb.set_trace()
         self.sampling_ratio = kwargs.get("sampling_ratio", 0.2)
@@ -66,12 +66,15 @@ class ParaformerStreaming(Paraformer):
         self.encoder_bmodel = EngineOV("bmodel/asr_online/online_encoder_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
         #self.decoder0_bmodel = EngineOV("bmodel/asr_online/online_decoder0_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
         self.decoder1_bmodel = EngineOV("bmodel/asr_online/online_decoder1_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
+        # self.encoder_bmodel = EngineOV("bmodel/asr_online/online_encoder_bm1688_f32.bmodel", device_id=kwargs['dev_id'])
+        # #self.decoder0_bmodel = EngineOV("bmodel/asr_online/online_decoder0_bm1688_f32.bmodel", device_id=kwargs['dev_id'])
+        # self.decoder1_bmodel = EngineOV("bmodel/asr_online/online_decoder1_bm1688_f32.bmodel", device_id=kwargs['dev_id'])
 
         self.predictor.cif_conv1d.weight = torch.load("bmodel/asr_online/cif_conv1d_weight.pt")
         self.predictor.cif_conv1d.bias = torch.load("bmodel/asr_online/cif_conv1d_bias.pt")
         self.predictor.cif_output.weight = torch.load("bmodel/asr_online/cif_output_weight.pt")
         self.predictor.cif_output.bias = torch.load("bmodel/asr_online/cif_output_bias.pt")
-    
+
     def forward(
         self,
         speech: torch.Tensor,
@@ -94,20 +97,20 @@ class ParaformerStreaming(Paraformer):
             text_lengths = text_lengths[:, 0]
         if len(speech_lengths.size()) > 1:
             speech_lengths = speech_lengths[:, 0]
-        
+
         batch_size = speech.shape[0]
-        
+
         # Encoder
         if hasattr(self.encoder, "overlap_chunk_cls"):
             ind = self.encoder.overlap_chunk_cls.random_choice(self.training, decoding_ind)
             encoder_out, encoder_out_lens = self.encode(speech, speech_lengths, ind=ind)
         else:
             encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
-        
+
         loss_ctc, cer_ctc = None, None
         loss_pre = None
         stats = dict()
-        
+
         # decoder: CTC branch
 
         if self.ctc_weight > 0.0:
@@ -117,26 +120,26 @@ class ParaformerStreaming(Paraformer):
                                                                                                     chunk_outs=None)
             else:
                 encoder_out_ctc, encoder_out_lens_ctc = encoder_out, encoder_out_lens
-                
+
             loss_ctc, cer_ctc = self._calc_ctc_loss(
                 encoder_out_ctc, encoder_out_lens_ctc, text, text_lengths
             )
             # Collect CTC branch stats
             stats["loss_ctc"] = loss_ctc.detach() if loss_ctc is not None else None
             stats["cer_ctc"] = cer_ctc
-        
+
         # decoder: Attention decoder branch
         loss_att, acc_att, cer_att, wer_att, loss_pre, pre_loss_att = self._calc_att_predictor_loss(
             encoder_out, encoder_out_lens, text, text_lengths
         )
-        
+
         # 3. CTC-Att loss definition
         if self.ctc_weight == 0.0:
             loss = loss_att + loss_pre * self.predictor_weight
         else:
             loss = self.ctc_weight * loss_ctc + (
                     1 - self.ctc_weight) * loss_att + loss_pre * self.predictor_weight
-        
+
         # Collect Attn branch stats
         stats["loss_att"] = loss_att.detach() if loss_att is not None else None
         stats["pre_loss_att"] = pre_loss_att.detach() if pre_loss_att is not None else None
@@ -144,15 +147,15 @@ class ParaformerStreaming(Paraformer):
         stats["cer"] = cer_att
         stats["wer"] = wer_att
         stats["loss_pre"] = loss_pre.detach().cpu() if loss_pre is not None else None
-        
+
         stats["loss"] = torch.clone(loss.detach())
-        
+
         # force_gatherable: to-device and to-tensor if scalar for DataParallel
         if self.length_normalized_loss:
             batch_size = (text_lengths + self.predictor_bias).sum()
         loss, stats, weight = force_gatherable((loss, stats, batch_size), loss.device)
         return loss, stats, weight
-    
+
     def encode_chunk(
         self, speech: torch.Tensor, speech_lengths: torch.Tensor, cache: dict = None, **kwargs,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -163,22 +166,22 @@ class ParaformerStreaming(Paraformer):
                 ind: int
         """
         with autocast(False):
-            
+
             # Data augmentation
             if self.specaug is not None and self.training:
                 speech, speech_lengths = self.specaug(speech, speech_lengths)
-            
+
             # Normalization for feature: e.g. Global-CMVN, Utterance-CMVN
             if self.normalize is not None:
                 speech, speech_lengths = self.normalize(speech, speech_lengths)
-        
+
         # Forward encoder
         encoder_out, encoder_out_lens, _ = self.encoder.forward_chunk(speech, speech_lengths, cache=cache["encoder"])
         if isinstance(encoder_out, tuple):
             encoder_out = encoder_out[0]
-        
+
         return encoder_out, torch.tensor([encoder_out.size(1)])
-    
+
     def _calc_att_predictor_loss(
         self,
         encoder_out: torch.Tensor,
@@ -209,7 +212,7 @@ class ParaformerStreaming(Paraformer):
                                                                               )
         predictor_alignments, predictor_alignments_len = self.predictor.gen_frame_alignments(pre_alphas,
                                                                                              encoder_out_lens)
-        
+
         scama_mask = None
         if self.encoder.overlap_chunk_cls is not None and self.decoder_attention_chunk_type == 'chunk':
             encoder_chunk_size = self.encoder.overlap_chunk_cls.chunk_size_pad_shift_cur
@@ -255,13 +258,13 @@ class ParaformerStreaming(Paraformer):
                                  ys_pad_lens, pre_acoustic_embeds, scama_mask)
         else:
             sematic_embeds = pre_acoustic_embeds
-        
+
         # 1. Forward decoder
         decoder_outs = self.decoder(
             encoder_out, encoder_out_lens, sematic_embeds, ys_pad_lens, scama_mask
         )
         decoder_out, _ = decoder_outs[0], decoder_outs[1]
-        
+
         if decoder_out_1st is None:
             decoder_out_1st = decoder_out
         # 2. Compute attention loss
@@ -272,18 +275,18 @@ class ParaformerStreaming(Paraformer):
             ignore_label=self.ignore_id,
         )
         loss_pre = self.criterion_pre(ys_pad_lens.type_as(pre_token_length), pre_token_length)
-        
+
         # Compute cer/wer using attention-decoder
         if self.training or self.error_calculator is None:
             cer_att, wer_att = None, None
         else:
             ys_hat = decoder_out_1st.argmax(dim=-1)
             cer_att, wer_att = self.error_calculator(ys_hat.cpu(), ys_pad.cpu())
-        
+
         return loss_att, acc_att, cer_att, wer_att, loss_pre, pre_loss_att
-    
+
     def sampler(self, encoder_out, encoder_out_lens, ys_pad, ys_pad_lens, pre_acoustic_embeds, chunk_mask=None):
-        
+
         tgt_mask = (~make_pad_mask(ys_pad_lens, maxlen=ys_pad_lens.max())[:, :, None]).to(ys_pad.device)
         ys_pad_masked = ys_pad * tgt_mask[:, :, 0]
         if self.share_embedding:
@@ -308,14 +311,14 @@ class ParaformerStreaming(Paraformer):
             input_mask = input_mask.eq(1)
             input_mask = input_mask.masked_fill(~nonpad_positions, False)
             input_mask_expand_dim = input_mask.unsqueeze(2).to(pre_acoustic_embeds.device)
-        
+
         sematic_embeds = pre_acoustic_embeds.masked_fill(~input_mask_expand_dim, 0) + ys_pad_embed.masked_fill(
             input_mask_expand_dim, 0)
         return sematic_embeds * tgt_mask, decoder_out * tgt_mask
-    
+
 
     def calc_predictor(self, encoder_out, encoder_out_lens):
-        
+
         encoder_out_mask = (~make_pad_mask(encoder_out_lens, maxlen=encoder_out.size(1))[:, None, :]).to(
             encoder_out.device)
         mask_chunk_predictor = None
@@ -336,7 +339,7 @@ class ParaformerStreaming(Paraformer):
                                                                                            )
         predictor_alignments, predictor_alignments_len = self.predictor.gen_frame_alignments(pre_alphas,
                                                                                              encoder_out_lens + 1 if self.predictor.tail_threshold > 0.0 else encoder_out_lens)
-        
+
         scama_mask = None
         if self.encoder.overlap_chunk_cls is not None and self.decoder_attention_chunk_type == 'chunk':
             encoder_chunk_size = self.encoder.overlap_chunk_cls.chunk_size_pad_shift_cur
@@ -364,14 +367,14 @@ class ParaformerStreaming(Paraformer):
                 is_training=self.training,
             )
         self.scama_mask = scama_mask
-        
+
         return pre_acoustic_embeds, pre_token_length, pre_alphas, pre_peak_index
-    
+
     def calc_predictor_chunk(self, encoder_out, encoder_out_lens, cache=None, **kwargs):
         is_final = kwargs.get("is_final", False)
-  
+
         return self.predictor.forward_chunk(encoder_out, cache["encoder"], is_final=is_final)
-    
+
     def cal_decoder_with_predictor(self, encoder_out, encoder_out_lens, sematic_embeds, ys_pad_lens):
         decoder_outs = self.decoder(
             encoder_out, encoder_out_lens, sematic_embeds, ys_pad_lens, self.scama_mask
@@ -379,7 +382,7 @@ class ParaformerStreaming(Paraformer):
         decoder_out = decoder_outs[0]
         decoder_out = torch.log_softmax(decoder_out, dim=-1)
         return decoder_out, ys_pad_lens
-    
+
     def cal_decoder_with_predictor_chunk(self, encoder_out, encoder_out_lens, sematic_embeds, ys_pad_lens, cache=None):
         decoder_outs = self.decoder.forward_chunk(
             encoder_out, sematic_embeds, cache["decoder"]
@@ -387,7 +390,7 @@ class ParaformerStreaming(Paraformer):
         decoder_out = decoder_outs
         decoder_out = torch.log_softmax(decoder_out, dim=-1)
         return decoder_out, ys_pad_lens
-    
+
     def init_cache(self, cache: dict = {}, **kwargs):
         chunk_size = kwargs.get("chunk_size", [0, 10, 5])
         encoder_chunk_look_back = kwargs.get("encoder_chunk_look_back", 0)
@@ -402,15 +405,15 @@ class ParaformerStreaming(Paraformer):
                     "feats": torch.zeros((batch_size, chunk_size[0] + chunk_size[2], feats_dims)),
                     "tail_chunk": False}
         cache["encoder"] = cache_encoder
-        
+
         cache_decoder = {"decode_fsmn": None, "decoder_chunk_look_back": decoder_chunk_look_back, "opt": None,
                     "chunk_size": chunk_size}
         cache["decoder"] = cache_decoder
         cache["frontend"] = {}
         cache["prev_samples"] = torch.empty(0)
-        
+
         return cache
-    
+
     def generate_chunk(self,
                        speech,
                        speech_lengths=None,
@@ -422,12 +425,12 @@ class ParaformerStreaming(Paraformer):
         cache = kwargs.get("cache", {})
         speech = speech.to(device=kwargs["device"])
         speech_lengths = speech_lengths.to(device=kwargs["device"])
-       
+
         # # Encoder
         # encoder_out, encoder_out_lens = self.encode_chunk(speech, speech_lengths, cache=cache, is_final=kwargs.get("is_final", False))
         # if isinstance(encoder_out, tuple):
         #     encoder_out = encoder_out[0]
-        
+
         # encoder bmodel
         speech = speech.detach().numpy()
         # start_idx = (torch.tensor([cache['encoder']['start_idx']], dtype=torch.int64).detach().numpy()).astype(np.int32)
@@ -439,7 +442,7 @@ class ParaformerStreaming(Paraformer):
         cache['encoder']['feats'] = torch.from_numpy(outputs[2])
         encoder_out = torch.from_numpy(outputs[0])
         encoder_out_lens = torch.tensor([encoder_out.size(1)])
-        
+
         # predictor
         predictor_outs = self.calc_predictor_chunk(encoder_out, encoder_out_lens, cache=cache, is_final=kwargs.get("is_final", False))
         pre_acoustic_embeds, pre_token_length, alphas, pre_peak_index = predictor_outs[0], predictor_outs[1], \
@@ -447,7 +450,7 @@ class ParaformerStreaming(Paraformer):
         pre_token_length = pre_token_length.round().long()
         if torch.max(pre_token_length) < 1:
             return []
-        
+
         # ## decoder
         # decoder_outs = self.cal_decoder_with_predictor_chunk(encoder_out,
         #                                                      encoder_out_lens,
@@ -462,7 +465,7 @@ class ParaformerStreaming(Paraformer):
         pre_acoustic_embeds = pre_acoustic_embeds.detach().numpy()
         lens = (pre_token_length.detach().numpy()).astype(np.int32)
         input = [encoder_out, pre_acoustic_embeds]
-        if cache['decoder']['decode_fsmn'] is None: 
+        if cache['decoder']['decode_fsmn'] is None:
             # outputs = self.decoder0_bmodel(input)
             input.append(lens)
             N, C, T = encoder_out.shape
@@ -493,10 +496,10 @@ class ParaformerStreaming(Paraformer):
                     x=x, am_scores=am_scores, maxlenratio=kwargs.get("maxlenratio", 0.0),
                     minlenratio=kwargs.get("minlenratio", 0.0)
                 )
-                
+
                 nbest_hyps = nbest_hyps[: self.nbest]
             else:
-                
+
                 yseq = am_scores.argmax(dim=-1)
                 score = am_scores.max(dim=-1)[0]
                 score = torch.sum(score, dim=-1)
@@ -506,29 +509,29 @@ class ParaformerStreaming(Paraformer):
                 )
                 nbest_hyps = [Hypothesis(yseq=yseq, score=score)]
             for nbest_idx, hyp in enumerate(nbest_hyps):
-                
+
                 # remove sos/eos and get results
                 last_pos = -1
                 if isinstance(hyp.yseq, list):
                     token_int = hyp.yseq[1:last_pos]
                 else:
                     token_int = hyp.yseq[1:last_pos].tolist()
-                
+
                 # remove blank symbol id, which is assumed to be 0
                 token_int = list(filter(lambda x: x != self.eos and x != self.sos and x != self.blank_id, token_int))
-                
+
 
                 # Change integer-ids to tokens
                 token = tokenizer.ids2tokens(token_int)
                 # text = tokenizer.tokens2text(token)
-                
+
                 result_i = token
 
 
                 results.extend(result_i)
-        
+
         return results
-    
+
     def inference(self,
                  data_in,
                  data_lengths=None,
@@ -546,15 +549,15 @@ class ParaformerStreaming(Paraformer):
             logging.info("enable beam_search")
             self.init_beam_search(**kwargs)
             self.nbest = kwargs.get("nbest", 1)
-            
+
         if len(cache) == 0:
             self.init_cache(cache, **kwargs)
-        
-        
+
+
         meta_data = {}
         chunk_size = kwargs.get("chunk_size", [0, 10, 5])
         chunk_stride_samples = int(chunk_size[1] * 960)  # 600ms
-        
+
         time1 = time.perf_counter()
         cfg = {"is_final": kwargs.get("is_final", False)}
         audio_sample_list = load_audio_text_image_video(data_in,
@@ -565,13 +568,13 @@ class ParaformerStreaming(Paraformer):
                                                         cache=cfg,
                                                         )
         _is_final = cfg["is_final"] # if data_in is a file or url, set is_final=True
-        
+
         time2 = time.perf_counter()
         meta_data["load_data"] = f"{time2 - time1:0.3f}"
         assert len(audio_sample_list) == 1, "batch_size must be set 1"
-        
+
         audio_sample = torch.cat((cache["prev_samples"], audio_sample_list[0]))
-        
+
         n = int(len(audio_sample) // chunk_stride_samples + int(_is_final))
         m = int(len(audio_sample) % chunk_stride_samples * (1-int(_is_final)))
         tokens = []
@@ -589,20 +592,20 @@ class ParaformerStreaming(Paraformer):
             time3 = time.perf_counter()
             meta_data["extract_feat"] = f"{time3 - time2:0.3f}"
             meta_data["batch_data_time"] = speech_lengths.sum().item() * frontend.frame_shift * frontend.lfr_n / 1000
-            
+
             tokens_i = self.generate_chunk(speech, speech_lengths, key=key, tokenizer=tokenizer, cache=cache, frontend=frontend, **kwargs)
             tokens.extend(tokens_i)
-            
+
         text_postprocessed, _ = postprocess_utils.sentence_postprocess(tokens)
-        
+
         result_i = {"key": key[0], "text": text_postprocessed}
         result = [result_i]
-        
-        
+
+
         cache["prev_samples"] = audio_sample[:-m]
         if _is_final:
             self.init_cache(cache, **kwargs)
-        
+
         if kwargs.get("output_dir"):
             if not hasattr(self, "writer"):
                 self.writer = DatadirWriter(kwargs.get("output_dir"))
@@ -611,7 +614,7 @@ class ParaformerStreaming(Paraformer):
             ibest_writer["text"][key[0]] = text_postprocessed
 
         return result, meta_data
-    
+
     def export(self, **kwargs):
         from .export_meta import export_rebuild_model
         models = export_rebuild_model(model=self, **kwargs)

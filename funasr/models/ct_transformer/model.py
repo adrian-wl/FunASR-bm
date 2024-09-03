@@ -79,6 +79,7 @@ class CTTransformer(torch.nn.Module):
             self.jieba_usr_dict = jieba
 
         self.punc_model = EngineOV("./bmodel/punc/punc_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
+        #self.punc_model = EngineOV("./bmodel/punc/punc_bm1688_f32.bmodel", device_id=kwargs['dev_id'])
 
 
     def punc_forward(self, text: torch.Tensor, text_lengths: torch.Tensor, **kwargs):
