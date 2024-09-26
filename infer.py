@@ -2,7 +2,7 @@ from funasr import AutoModel
 import time
 
 # setting
-dev_id = 0                              ## bm1684x device id
+dev_id = 0                              ## bm1684x/bm1688 device id
 input_path = "./vad_example.wav"        ## input audio path
 
 # offline asr demo
@@ -14,7 +14,7 @@ model = AutoModel(model="iic/speech_paraformer-large-contextual_asr_nat-zh-cn-16
 # inference
 start_time = time.time()
 res = model.generate(input=input_path,
-                     batch_size_s=30,
+                     batch_size_s=300,
                      )
 end_time = time.time()
 print(res)

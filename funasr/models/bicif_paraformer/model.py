@@ -54,8 +54,8 @@ class BiCifParaformer(Paraformer):
     ):
         super().__init__(*args, **kwargs)
 
-        # self.encoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_encoder_bm1684x_f32.bmodel")
-        # self.decoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_decoder_bm1684x_f32.bmodel")
+        # self.encoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_encoder_f32.bmodel")
+        # self.decoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_decoder_f32.bmodel")
 
     def _calc_pre2_loss(
         self,

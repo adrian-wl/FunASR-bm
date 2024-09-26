@@ -63,9 +63,9 @@ class ParaformerStreaming(Paraformer):
             self.build_scama_mask_for_cross_attention_decoder_fn = build_scama_mask_for_cross_attention_decoder
             self.decoder_attention_chunk_type = kwargs.get("decoder_attention_chunk_type", "chunk")
 
-        self.encoder_bmodel = EngineOV("bmodel/asr_online/online_encoder_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
-        self.decoder0_bmodel = EngineOV("bmodel/asr_online/online_decoder0_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
-        self.decoder1_bmodel = EngineOV("bmodel/asr_online/online_decoder1_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
+        self.encoder_bmodel = EngineOV("bmodel/asr_online/online_encoder_f32.bmodel", device_id=kwargs['dev_id'])
+        self.decoder0_bmodel = EngineOV("bmodel/asr_online/online_decoder0_f32.bmodel", device_id=kwargs['dev_id'])
+        self.decoder1_bmodel = EngineOV("bmodel/asr_online/online_decoder1_f32.bmodel", device_id=kwargs['dev_id'])
 
         self.predictor.cif_conv1d.weight = torch.load("bmodel/asr_online/cif_conv1d_weight.pt")
         self.predictor.cif_conv1d.bias = torch.load("bmodel/asr_online/cif_conv1d_bias.pt")
