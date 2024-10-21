@@ -25,6 +25,8 @@ from funasr.utils.timestamp_tools import ts_prediction_lfr6_standard
 from funasr.models.transformer.utils.nets_utils import make_pad_mask, pad_list
 from funasr.utils.load_utils import load_audio_text_image_video, extract_fbank
 from funasr.train_utils.device_funcs import to_device
+from funasr.models.bicif_paraformer.cif_predictor import cif
+from funasr.models.bicif_paraformer.cif_predictor import cif_wo_hidden
 
 from funasr.utils.run_bmodel import EngineOV
 
@@ -54,8 +56,9 @@ class BiCifParaformer(Paraformer):
     ):
         super().__init__(*args, **kwargs)
 
-        # self.encoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_encoder_f32.bmodel")
-        # self.decoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_decoder_f32.bmodel")
+        self.encoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_encoder_f32.bmodel")
+        self.decoder_bmodel = EngineOV("bmodel/asr_bicif/bicif_decoder_f32.bmodel")
+        self.predictor_bmodel = EngineOV("bmodel/asr_bicif/bicif_predictor_f32.bmodel")
 
     def _calc_pre2_loss(
         self,
@@ -261,35 +264,48 @@ class BiCifParaformer(Paraformer):
         speech = speech.to(device=kwargs["device"])
         speech_lengths = speech_lengths.to(device=kwargs["device"])
         
-        # Encoder
-        encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
-        if isinstance(encoder_out, tuple):
-            encoder_out = encoder_out[0]
+        # # Encoder
+        # encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
+        # if isinstance(encoder_out, tuple):
+        #     encoder_out = encoder_out[0]
 
-        # # Encoder bmodel
-        # outputs = self.encoder_bmodel([speech.detach().numpy(), speech_lengths.detach().numpy()])
-        # encoder_out = torch.from_numpy(outputs[0])
-        # encoder_out_lens = speech_lengths
+        # # predictor
+        # predictor_outs = self.calc_predictor(encoder_out, encoder_out_lens)
+        # pre_acoustic_embeds, pre_token_length, alphas, pre_peak_index = predictor_outs[0], predictor_outs[1], \
+        #                                                                 predictor_outs[2], predictor_outs[3]
+        
+        # encoder+predictor bmodel
+        outputs = self.encoder_bmodel([speech.detach().numpy(), speech_lengths.detach().numpy()])
+        encoder_out = torch.from_numpy(outputs[0])
+        encoder_out_lens = speech_lengths
+        hidden, alphas, pre_token_length = torch.from_numpy(outputs[1]), torch.from_numpy(outputs[2]), torch.from_numpy(outputs[3])
+        pre_acoustic_embeds, pre_peak_index = cif(hidden, alphas, 1.0)
+        token_num_int = torch.max(pre_token_length).type(torch.int32).item()
+        pre_acoustic_embeds = pre_acoustic_embeds[:, :token_num_int, :]
 
-        # predictor
-        predictor_outs = self.calc_predictor(encoder_out, encoder_out_lens)
-        pre_acoustic_embeds, pre_token_length, alphas, pre_peak_index = predictor_outs[0], predictor_outs[1], \
-                                                                        predictor_outs[2], predictor_outs[3]
         pre_token_length = pre_token_length.round().long()
         if torch.max(pre_token_length) < 1:
             return []
-        decoder_outs = self.cal_decoder_with_predictor(encoder_out, encoder_out_lens, pre_acoustic_embeds,
-                                                       pre_token_length)
-        decoder_out, ys_pad_lens = decoder_outs[0], decoder_outs[1]
+        # decoder_outs = self.cal_decoder_with_predictor(encoder_out, encoder_out_lens, pre_acoustic_embeds,
+        #                                                pre_token_length)
+        # decoder_out, ys_pad_lens = decoder_outs[0], decoder_outs[1]
 
-        # # decoder bmodel
-        # outputs = self.decoder_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32), pre_acoustic_embeds.detach().numpy(), pre_token_length.detach().numpy().astype(np.int32)])
-        # decoder_out = torch.from_numpy(outputs[0])
+        # decoder bmodel
+        outputs = self.decoder_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32), pre_acoustic_embeds.detach().numpy(), pre_token_length.detach().numpy().astype(np.int32)])
+        decoder_out = torch.from_numpy(outputs[0])
+
+        # # BiCifParaformer, test no bias cif2
+        # _, _, us_alphas, us_peaks = self.calc_predictor_timestamp(encoder_out, encoder_out_lens,
+        #                                                           pre_token_length)
         
-        # BiCifParaformer, test no bias cif2
-        _, _, us_alphas, us_peaks = self.calc_predictor_timestamp(encoder_out, encoder_out_lens,
-                                                                  pre_token_length)
-        
+        # predictor timestamp bmodel
+        outputs = self.predictor_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32)])
+        alphas2 = torch.from_numpy(outputs[0])
+        _token_num = torch.from_numpy(outputs[1])
+        token_num = pre_token_length
+        us_alphas = alphas2 * ((token_num / _token_num)[:, None].repeat(1, alphas2.size(1)))
+        us_peaks = cif_wo_hidden(us_alphas, 1.0 - 1e-4)
+
         results = []
         b, n, d = decoder_out.size()
         for i in range(b):
