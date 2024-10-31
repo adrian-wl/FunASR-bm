@@ -31,6 +31,8 @@ from funasr.models.transformer.utils.nets_utils import make_pad_mask, pad_list
 from funasr.utils.load_utils import load_audio_text_image_video, extract_fbank
 
 from funasr.utils.run_bmodel import EngineOV
+from funasr.models.bicif_paraformer.cif_predictor import cif
+from funasr.models.bicif_paraformer.cif_predictor import cif_wo_hidden
 import numpy as np
 
 if LooseVersion(torch.__version__) >= LooseVersion("1.6.0"):
@@ -103,8 +105,9 @@ class SeacoParaformer(BiCifParaformer, Paraformer):
         self.NO_BIAS = kwargs.get("NO_BIAS", 8377)
         self.predictor_name = kwargs.get("predictor")
 
-        # self.encoder_bmodel = EngineOV("../gen_seaco_paraformer/seaco_encoder_bm1684x_f32_large.bmodel", device_id=kwargs['dev_id'])
-        # self.decoder_bmodel = EngineOV("../gen_seaco_paraformer/seaco_decoder_bm1684x_f32_large.bmodel", device_id=kwargs['dev_id'])
+        self.encoder_bmodel = EngineOV("bmodel/asr_seaco/seaco_encoder_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
+        self.predictor_bmodel = EngineOV("bmodel/asr_seaco/seaco_predictor_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
+        self.decoder_bmodel = EngineOV("bmodel/asr_seaco/seaco_decoder_bm1684x_f32.bmodel", device_id=kwargs['dev_id'])
         
     def forward(
         self,
@@ -221,9 +224,9 @@ class SeacoParaformer(BiCifParaformer, Paraformer):
                                hw_list,
                                nfilter=50,
                                seaco_weight=1.0):
-        # # decoder forward
-        decoder_out, decoder_hidden, _ = self.decoder(encoder_out, encoder_out_lens, sematic_embeds, ys_pad_lens, return_hidden=True, return_both=True)
-        decoder_pred = torch.log_softmax(decoder_out, dim=-1)
+        # # # decoder forward
+        # decoder_out, decoder_hidden, _ = self.decoder(encoder_out, encoder_out_lens, sematic_embeds, ys_pad_lens, return_hidden=True, return_both=True)
+        # decoder_pred = torch.log_softmax(decoder_out, dim=-1)
 
         # # decoder onnx
         # import onnxruntime as ort
@@ -231,15 +234,9 @@ class SeacoParaformer(BiCifParaformer, Paraformer):
         # session = ort.InferenceSession(decoder_path)
         # outputs = session.run(None, {"enc": encoder_out.detach().numpy(), "enc_len": encoder_out_lens.detach().numpy().astype(np.int32), "pre_acoustic_embeds": sematic_embeds.detach().numpy(), "pre_token_length": ys_pad_lens.detach().numpy().astype(np.int32)})
         # decoder_pred_, decoder_hidden_ = torch.from_numpy(outputs[0]), torch.from_numpy(outputs[1])
-        # # decoder bmodel
-        # outputs = self.decoder_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32), sematic_embeds.detach().numpy(), ys_pad_lens.detach().numpy().astype(np.int32)])
-        # decoder_pred_, decoder_hidden_ = torch.from_numpy(outputs[0]), torch.from_numpy(outputs[1])
-        # # print(torch.max(torch.abs(decoder_pred_-decoder_pred)))
-        # # print(torch.mean(torch.abs(decoder_pred_-decoder_pred)))
-        # # print(torch.max(torch.abs(decoder_hidden_-decoder_hidden)))
-        # # print(torch.mean(torch.abs(decoder_hidden_-decoder_hidden)))
-        # # print(encoder_out.shape, encoder_out_lens, sematic_embeds.shape, ys_pad_lens)
-        # decoder_pred, decoder_hidden = decoder_pred_, decoder_hidden_
+        # decoder bmodel
+        outputs = self.decoder_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32), sematic_embeds.detach().numpy(), ys_pad_lens.detach().numpy().astype(np.int32)])
+        decoder_pred, decoder_hidden = torch.from_numpy(outputs[0]), torch.from_numpy(outputs[1])
 
         if hw_list is not None:
             hw_lengths = [len(i) for i in hw_list]
@@ -355,34 +352,34 @@ class SeacoParaformer(BiCifParaformer, Paraformer):
         # hotword
         self.hotword_list = self.generate_hotwords_list(kwargs.get("hotword", None), tokenizer=tokenizer, frontend=frontend)
 
-        # Encoder
-        encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
-
-        # # encoder onnx
+        # # Encoder
+        # encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
+        
+        # # predictor
+        # predictor_outs = self.calc_predictor(encoder_out, encoder_out_lens)
+        # pre_acoustic_embeds, pre_token_length = predictor_outs[0], predictor_outs[1]
+        # pre_token_length = pre_token_length.round().long()
+        # if torch.max(pre_token_length) < 1:
+        #     return []
+        
+        # # encoder+predictor onnx
         # import onnxruntime as ort
-        # encoder_path = "../FunASR/seaco_encoder.onnx"
+        # encoder_path = "../../FunASR/seaco_encoder2.onnx"
         # session = ort.InferenceSession(encoder_path)
         # outputs = session.run(None, {"speech": speech.detach().numpy(), "speech_lengths": speech_lengths.detach().numpy()})
-        # encoder_out_ = torch.from_numpy(outputs[0])
-        # # encoder bmodel
-        # outputs = self.encoder_bmodel([speech.detach().numpy(), speech_lengths.detach().numpy()])
-        # encoder_out_ = torch.from_numpy(outputs[0])
-        # encoder_out, encoder_out_lens = encoder_out_, speech_lengths
-        # # print(torch.max(torch.abs(encoder_out_-encoder_out)))
-        # # print(torch.mean(torch.abs(encoder_out_-encoder_out)))
-        # # print((encoder_out_lens==speech_lengths).all())
-        # # print(self.hotword_list is None)
-
-        if isinstance(encoder_out, tuple):
-            encoder_out = encoder_out[0]
+        # encoder+predictor bmodel
+        outputs = self.encoder_bmodel([speech.detach().numpy(), speech_lengths.detach().numpy()])
+        encoder_out = torch.from_numpy(outputs[0])
+        encoder_out_lens = speech_lengths
+        hidden, alphas, pre_token_length = torch.from_numpy(outputs[1]), torch.from_numpy(outputs[2]), torch.from_numpy(outputs[3])
+        pre_acoustic_embeds, pre_peak_index = cif(hidden, alphas, 1.0)
+        token_num_int = torch.max(pre_token_length).type(torch.int32).item()
+        pre_acoustic_embeds = pre_acoustic_embeds[:, :token_num_int, :]
         
-        # predictor
-        predictor_outs = self.calc_predictor(encoder_out, encoder_out_lens)
-        pre_acoustic_embeds, pre_token_length = predictor_outs[0], predictor_outs[1]
         pre_token_length = pre_token_length.round().long()
         if torch.max(pre_token_length) < 1:
             return []
-        
+
         decoder_out = self._seaco_decode_with_ASF(encoder_out, 
                                                   encoder_out_lens,
                                                   pre_acoustic_embeds,
@@ -392,9 +389,22 @@ class SeacoParaformer(BiCifParaformer, Paraformer):
 
         # decoder_out, _ = decoder_outs[0], decoder_outs[1]
         if self.predictor_name == "CifPredictorV3":
-            _, _, us_alphas, us_peaks = self.calc_predictor_timestamp(encoder_out, 
-                                                                      encoder_out_lens,
-                                                                      pre_token_length)
+            # # predictor timestamp onnx
+            # import onnxruntime as ort
+            # encoder_path = "../../FunASR/seaco_predictor.onnx"
+            # session = ort.InferenceSession(encoder_path)
+            # outputs = session.run(None, {"enc": encoder_out.detach().numpy(), "enc_len": encoder_out_lens.detach().numpy().astype(np.int32)})
+            # predictor timestamp bmodel
+            outputs = self.predictor_bmodel([encoder_out.detach().numpy(), encoder_out_lens.detach().numpy().astype(np.int32)])
+            alphas2 = torch.from_numpy(outputs[0])
+            _token_num = torch.from_numpy(outputs[1])
+            token_num = pre_token_length
+            us_alphas = alphas2 * ((token_num / _token_num)[:, None].repeat(1, alphas2.size(1)))
+            us_peaks = cif_wo_hidden(us_alphas, 1.0 - 1e-4)
+
+            # _, _, us_alphas, us_peaks = self.calc_predictor_timestamp(encoder_out, 
+            #                                                           encoder_out_lens,
+            #                                                           pre_token_length)
         else:
             us_alphas = None
             
